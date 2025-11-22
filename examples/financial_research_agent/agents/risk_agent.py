@@ -18,5 +18,6 @@ class AnalysisSummary(BaseModel):
 risk_agent = Agent(
     name="RiskAnalystAgent",
     instructions=RISK_PROMPT,
+    model="gpt-5-mini",
     output_type=AnalysisSummary,
 )

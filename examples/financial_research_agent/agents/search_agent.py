@@ -12,7 +12,7 @@ INSTRUCTIONS = (
 
 search_agent = Agent(
     name="FinancialSearchAgent",
-    model="gpt-4.1",
+    model="gpt-5-mini",
     instructions=INSTRUCTIONS,
     tools=[WebSearchTool()],
     model_settings=ModelSettings(tool_choice="required"),

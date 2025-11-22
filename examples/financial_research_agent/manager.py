@@ -29,9 +29,15 @@ class FinancialResearchManager:
     Orchestrates the full flow: planning, searching, sub‑analysis, writing, and verification.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, callback=None) -> None:
         self.console = Console()
         self.printer = Printer(self.console)
+        self.callback = callback
+
+    def _log(self, agent_name, action, details):
+        """Helper to log agent actions if callback is present."""
+        if self.callback and hasattr(self.callback, 'log_agent_action'):
+            self.callback.log_agent_action(agent_name, action, details)
 
     async def run(self, query: str) -> None:
         trace_id = gen_trace_id()
@@ -63,13 +69,21 @@ class FinancialResearchManager:
 
     async def _plan_searches(self, query: str) -> FinancialSearchPlan:
         self.printer.update_item("planning", "Planning searches...")
+        self._log("Planner", "Analyzing query", query)
+        
         result = await Runner.run(planner_agent, f"Query: {query}")
+        
+        plan = result.final_output_as(FinancialSearchPlan)
+        self._log("Planner", "Generated search plan", f"Created {len(plan.searches)} search queries")
+        for item in plan.searches:
+            self._log("Planner", "New search query", f"Query: {item.query}\nReason: {item.reason}")
+            
         self.printer.update_item(
             "planning",
-            f"Will perform {len(result.final_output.searches)} searches",
+            f"Will perform {len(plan.searches)} searches",
             is_done=True,
         )
-        return result.final_output_as(FinancialSearchPlan)
+        return plan
 
     async def _perform_searches(self, search_plan: FinancialSearchPlan) -> Sequence[str]:
         with custom_span("Search the web"):
@@ -90,10 +104,14 @@ class FinancialResearchManager:
 
     async def _search(self, item: FinancialSearchItem) -> str | None:
         input_data = f"Search term: {item.query}\nReason: {item.reason}"
+        self._log("Search", "Executing search", f"Query: {item.query}")
         try:
             result = await Runner.run(search_agent, input_data)
-            return str(result.final_output)
-        except Exception:
+            output = str(result.final_output)
+            self._log("Search", "Search completed", f"Found results for: {item.query}")
+            return output
+        except Exception as e:
+            self._log("Search", "Search failed", f"Error: {str(e)}")
             return None
 
     async def _write_report(self, query: str, search_results: Sequence[str]) -> FinancialReportData:
@@ -111,6 +129,8 @@ class FinancialResearchManager:
         )
         writer_with_tools = writer_agent.clone(tools=[fundamentals_tool, risk_tool])
         self.printer.update_item("writing", "Thinking about report...")
+        self._log("Writer", "Starting report generation", "Synthesizing search results...")
+        
         input_data = f"Original query: {query}\nSummarized search results: {search_results}"
         result = Runner.run_streamed(writer_with_tools, input_data)
         update_messages = [
@@ -123,6 +143,7 @@ class FinancialResearchManager:
         async for _ in result.stream_events():
             if time.time() - last_update > 5 and next_message < len(update_messages):
                 self.printer.update_item("writing", update_messages[next_message])
+                self._log("Writer", "Progress update", update_messages[next_message])
                 next_message += 1
                 last_update = time.time()
         self.printer.mark_item_done("writing")
@@ -130,6 +151,11 @@ class FinancialResearchManager:
 
     async def _verify_report(self, report: FinancialReportData) -> VerificationResult:
         self.printer.update_item("verifying", "Verifying report...")
+        self._log("Verifier", "Starting verification", "Checking report for accuracy and consistency")
+        
         result = await Runner.run(verifier_agent, report.markdown_report)
+        verification = result.final_output_as(VerificationResult)
+        
+        self._log("Verifier", "Verification complete", f"Verified: {verification.verified}\nIssues: {verification.issues}")
         self.printer.mark_item_done("verifying")
-        return result.final_output_as(VerificationResult)
+        return verification
