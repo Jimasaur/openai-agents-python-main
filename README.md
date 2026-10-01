@@ -1,3 +1,13 @@
+# OpenAI Agents SDK exploration snapshot
+
+This repository is a personal exploration copy of the [OpenAI Agents SDK for Python](https://github.com/openai/openai-agents-python). The upstream SDK and its documentation are OpenAI's work; this repository is not the official distribution or a claim of original authorship of that framework.
+
+For the maintained SDK, installation guidance, and current releases, use the upstream repository. For the focused financial-research demo, see [Financial Research Agent](https://github.com/Jimasaur/financial_agent).
+
+The original SDK overview is retained below for context. It describes the snapshot included here and may differ from the current upstream release. See [LICENSE](LICENSE) for the included license.
+
+---
+
 # OpenAI Agents SDK
 
 The OpenAI Agents SDK is a lightweight yet powerful framework for building multi-agent workflows. It is provider-agnostic, supporting the OpenAI Responses and Chat Completions APIs, as well as 100+ other LLMs.
